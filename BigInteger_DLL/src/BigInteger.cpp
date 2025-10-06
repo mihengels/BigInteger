@@ -59,27 +59,26 @@ BigInteger BigInteger::addAbs(const BigInteger& a, const BigInteger& b) {
 }
 
 BigInteger BigInteger::subAbs(const BigInteger& a, const BigInteger& b) {
-    // Предполагаем |a| >= |b|
-    BigInteger res = a;
-    unsigned __int128 borrow = 0;
+    BigInteger res;
+    res.limbs_.resize(a.limbs_.size());
 
-    for (size_t i = 0; i < res.limbs_.size(); i++) {
-        unsigned __int128 bi_val = i < b.limbs_.size() ? b.limbs_[i] : 0;
-        unsigned __int128 diff = (unsigned __int128)res.limbs_[i] - bi_val - borrow;
+    bi_limb_t borrow = 0;
+    for (size_t i = 0; i < a.limbs_.size(); ++i) {
+        bi_limb_t limb_b = i < b.limbs_.size() ? b.limbs_[i] : 0;
+        u_int64_t ai = a.limbs_[i];
+        
+        // Вычитаем с учётом заёма
+        u_int64_t tmp = ai - limb_b - borrow;
+        res.limbs_[i] = tmp;
 
-        if ((int64_t)diff < 0) {
-            diff += (static_cast<unsigned __int128>(1) << 64);
-            borrow = 1;
-        } else {
-            borrow = 0;
-        }
-
-        res.limbs_[i] = static_cast<bi_limb_t>(diff);
+        // Обновляем borrow
+        borrow = (ai < limb_b + borrow) ? 1 : 0;
     }
 
     res.normalize();
     return res;
 }
+
 
 BigInteger& BigInteger::operator+=(const BigInteger& other) {
     if (negative_ == other.negative_) {
@@ -176,9 +175,8 @@ BigInteger& BigInteger::operator*=(const BigInteger& other) {
     return *this;
 }
 
-// Деление |a| / |b|, возвращает std::pair<quotient, remainder>
 std::pair<BigInteger, BigInteger> BigInteger::divMod(const BigInteger& a, const BigInteger& b) {
-    if (b.isZero()) 
+    if (b.isZero())
         throw std::runtime_error("Division by zero");
 
     BigInteger dividend = a;
@@ -189,43 +187,33 @@ std::pair<BigInteger, BigInteger> BigInteger::divMod(const BigInteger& a, const 
     if (cmpAbs(dividend, divisor) < 0)
         return {BigInteger(0), dividend};
 
-    size_t n = dividend.limbs_.size();
-    size_t m = divisor.limbs_.size();
-
     BigInteger quotient;
-    quotient.limbs_.resize(n - m + 1, 0);
-    BigInteger remainder = dividend;
+    quotient.limbs_.resize(dividend.limbs_.size(), 0);
+    BigInteger remainder;
 
-    bi_limb_t d = static_cast<bi_limb_t>((1ULL << 64) / (divisor.limbs_.back() + 1));  // нормализация
-    if (d != 1) {
-        remainder *= BigInteger(d);
-        divisor *= BigInteger(d);
-    }
+    // long division
+    for (int i = dividend.limbs_.size() - 1; i >= 0; --i) {
+        // сдвигаем remainder на лимб
+        remainder.limbs_.insert(remainder.limbs_.begin(), dividend.limbs_[i]);
+        remainder.normalize();
 
-    remainder.limbs_.push_back(0); // чтобы избежать выхода за пределы
+        bi_limb_t q = 0;
+        bi_limb_t left = 0, right = ULONG_LONG_MAX;
 
-    for (int k = n - m; k >= 0; --k) {
-        __uint128_t r2 = ((__uint128_t)remainder.limbs_[k + m] << 64) | remainder.limbs_[k + m - 1];
-        bi_limb_t qhat = static_cast<bi_limb_t>(r2 / divisor.limbs_[m - 1]);
-        bi_limb_t rhat = static_cast<bi_limb_t>(r2 % divisor.limbs_[m - 1]);
-
-        while (qhat == (1ULL << 64) || (__uint128_t)qhat * divisor.limbs_[m - 2] > ((__uint128_t)rhat << 64) + remainder.limbs_[k + m - 2]) {
-            --qhat;
-            rhat += divisor.limbs_[m - 1];
-            if (rhat >= (1ULL << 64)) break;
+        // бинарный поиск для q
+        while (left <= right) {
+            bi_limb_t mid = left + (right - left) / 2;
+            BigInteger t = divisor * BigInteger(mid);
+            if (cmpAbs(t, remainder) <= 0) {
+                q = mid;
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
         }
 
-        BigInteger t = divisor * BigInteger(qhat);
-        t.limbs_.insert(t.limbs_.begin(), k, 0);
-
-        if (cmpAbs(remainder, t) < 0) {
-            --qhat;
-            t = divisor * BigInteger(qhat);
-            t.limbs_.insert(t.limbs_.begin(), k, 0);
-        }
-
-        remainder -= t;
-        quotient.limbs_[k] = qhat;
+        remainder -= divisor * BigInteger(q);
+        quotient.limbs_[i] = q;
     }
 
     quotient.negative_ = a.negative_ != b.negative_;
@@ -234,16 +222,9 @@ std::pair<BigInteger, BigInteger> BigInteger::divMod(const BigInteger& a, const 
     quotient.normalize();
     remainder.normalize();
 
-    if (d != 1) remainder /= BigInteger(d);
-
-    // GMP-style: остаток всегда >= 0
-    if (remainder.negative_) {
-        remainder += divisor;
-        quotient -= BigInteger(1);
-    }
-
     return {quotient, remainder};
 }
+
 
 BigInteger& BigInteger::operator/=(const BigInteger& other) {
     *this = divMod(*this, other).first;
