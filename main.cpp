@@ -10,40 +10,54 @@ class test {
 };
 
 int main() {
-    mpz_class a("12345678901234567890123456789028785762752687368256386576785");
-    mpz_class a1(2);
+    // mpz_class a("12345678901234567890123456789028785762752687368256386576785");
+    // mpz_class a1(2);
 
-    mpz_class res1;
-    mpz_pow_ui(res1.get_mpz_t(), a1.get_mpz_t(), 136279841);
+    // mpz_class res1;
+    // mpz_pow_ui(res1.get_mpz_t(), a1.get_mpz_t(), 136279841);
 
-    res1 -= 1;
+    // res1 -= 1;
 
-    __mpz_struct* ptr = res1.get_mpz_t();
-    mp_size_t n = std::abs(ptr->_mp_size); // число используемых лимбов
+    // __mpz_struct* ptr = res1.get_mpz_t();
+    // mp_size_t n = std::abs(ptr->_mp_size); // число используемых лимбов
 
-    std::cout << "Number of limbs: " << n << std::endl;
+    // std::cout << "Number of limbs: " << n << std::endl;
 
-    // for (mp_size_t i = 0; i < n; i++) {
-    //     std::cout << "limb[" << i << "] = "
-    //               << std::hex << std::showbase
-    //               << ptr->_mp_d[i]
-    //               << std::dec << std::endl;
-    // }
+    // // for (mp_size_t i = 0; i < n; i++) {
+    // //     std::cout << "limb[" << i << "] = "
+    // //               << std::hex << std::showbase
+    // //               << ptr->_mp_d[i]
+    // //               << std::dec << std::endl;
+    // // }
 
-    BigInteger b("12345678901234567890123456789028785762752687368256386576785");
-    BigInteger b1("1234567890");
-    auto res2 = (2_bi).pow(136279841) - 1;
-    auto limbs = res2.get_limbs();
-    std::cout << limbs.size() << std::endl;
+    // BigInteger b("12345678901234567890123456789028785762752687368256386576785");
+    // BigInteger b1("1234567890");
+    // auto res2 = (2_bi).pow(136279841) - 1;
+    // auto limbs = res2.get_limbs();
+    // std::cout << limbs.size() << std::endl;
 
-    // for (mp_size_t i = 0; i < limbs.size(); i++) {
-    //     std::cout << "limb[" << i << "] = "
-    //               << std::hex << std::showbase
-    //               << limbs[i]
-    //               << std::dec << std::endl;
-    // }
+    // // for (mp_size_t i = 0; i < limbs.size(); i++) {
+    // //     std::cout << "limb[" << i << "] = "
+    // //               << std::hex << std::showbase
+    // //               << limbs[i]
+    // //               << std::dec << std::endl;
+    // // }
     
+    // std::cout << (ptr->_mp_d[2129372] == limbs[2129372]) << std::endl;
 
+    BigInteger a("12345678901234567890123456789028785762752687368256386576785");
+    BigInteger b("12345678901234567890153456789028785762752687368256386576785");
+
+    std::cout << (a > b) << std::endl;
 
     
+    BigInteger c("120");
+    BigInteger d("84");
+
+    BigInteger g = BigInteger::gcd(c, d); // 12
+    BigInteger l = BigInteger::lcm(c, d); // 840
+
+    auto [gcd_val, x, y] = BigInteger::extendedGCD(a, b);
+    // x и y такие, что 120*x + 84*y = 12
+    std::cout << g.get_limbs()[0] << " " << l.get_limbs()[0] << std::endl;
 }

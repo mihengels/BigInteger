@@ -5,6 +5,7 @@
 #include <string>
 #include <algorithm>
 #include <climits>
+#include <compare>
 
 /** class BigInteger
  *  class for operations on big integers
@@ -67,6 +68,85 @@ public:
     // Функции для доступа к приватным членам
     auto& get_limbs() {
         return limbs_;
+    }
+
+    // Далее определяем сравнение больших чисел через спейсшип
+    std::strong_ordering operator<=>(const BigInteger& other) const {
+        // Сначала учитываем знак
+        if (negative_ != other.negative_) {
+            return negative_ ? std::strong_ordering::less
+                             : std::strong_ordering::greater;
+        }
+
+        // Если разное количество лимбов
+        if (limbs_.size() != other.limbs_.size()) {
+            if (limbs_.size() < other.limbs_.size())
+                return negative_ ? std::strong_ordering::greater
+                                 : std::strong_ordering::less;
+            else
+                return negative_ ? std::strong_ordering::less
+                                 : std::strong_ordering::greater;
+        }
+
+        // Сравниваем по лимбам начиная с самых старших
+        for (size_t i = limbs_.size(); i-- > 0;) {
+            if (limbs_[i] < other.limbs_[i])
+                return negative_ ? std::strong_ordering::greater
+                                 : std::strong_ordering::less;
+            else if (limbs_[i] > other.limbs_[i])
+                return negative_ ? std::strong_ordering::less
+                                 : std::strong_ordering::greater;
+        }
+
+        // Все лимбы равны
+        return std::strong_ordering::equal;
+    }
+
+    bool operator==(const BigInteger& other) const {
+        if (negative_ != other.negative_) return false;
+        if (limbs_.size() != other.limbs_.size()) return false;
+        for (size_t i = 0; i < limbs_.size(); ++i) {
+            if (limbs_[i] != other.limbs_[i]) return false;
+        }
+        return true;
+    }
+
+    // Расширенный алгоритм Евклида для вычисления НОДа и коэффициентов безу
+    static std::tuple<BigInteger, BigInteger, BigInteger> extendedGCD(BigInteger a, BigInteger b) {
+        BigInteger x0(1), y0(0);
+        BigInteger x1(0), y1(1);
+
+        while (!b.isZero()) {
+            BigInteger q = a / b;
+            BigInteger r = a % b;
+
+            BigInteger x2 = x0 - q * x1;
+            BigInteger y2 = y0 - q * y1;
+
+            a = std::move(b);
+            b = std::move(r);
+            x0 = std::move(x1);
+            y0 = std::move(y1);
+            x1 = std::move(x2);
+            y1 = std::move(y2);
+        }
+
+        return {a, x0, y0}; // a — gcd, x0 и y0 — коэффициенты Безу
+    }
+
+    // НОД двух чисел
+    static BigInteger gcd(const BigInteger& a, const BigInteger& b) {
+        return std::get<0>(extendedGCD(a, b));
+    }
+
+    // НОК двух чисел
+    static BigInteger lcm(const BigInteger& a, const BigInteger& b) {
+        if (a.isZero() || b.isZero()) return BigInteger(0);
+
+        BigInteger g = gcd(a, b);
+        BigInteger res = (a / g) * b;
+        res.negative_ = false; // НОК всегда положительный
+        return res;
     }
 };
 
