@@ -64,9 +64,6 @@ public:
     // Функция для возведения в степень (для небольших степеней)
     BigInteger pow(unsigned long long exp) const;
 
-    // Функция для возведения в большую степень
-    BigInteger pow(const BigInteger& exponent) const;
-
     // Функции для доступа к приватным членам
     auto& get_limbs() {
         return limbs_;

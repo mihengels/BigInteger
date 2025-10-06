@@ -137,26 +137,74 @@ BigInteger BigInteger::karatsubaMul(const BigInteger& a, const BigInteger& b) {
 
     // Делим числа на старшую и младшую половины
     BigInteger a1, a0, b1, b0;
-    a0.limbs_ = std::vector<bi_limb_t>(a.limbs_.begin(), a.limbs_.begin() + std::min(k, a.limbs_.size()));
-    a1.limbs_ = std::vector<bi_limb_t>(a.limbs_.begin() + std::min(k, a.limbs_.size()), a.limbs_.end());
-    b0.limbs_ = std::vector<bi_limb_t>(b.limbs_.begin(), b.limbs_.begin() + std::min(k, b.limbs_.size()));
-    b1.limbs_ = std::vector<bi_limb_t>(b.limbs_.begin() + std::min(k, b.limbs_.size()), b.limbs_.end());
+    a0.limbs_ = std::vector<bi_limb_t>(a.limbs_.begin(),
+                                       a.limbs_.begin() + std::min(k, a.limbs_.size()));
+    a1.limbs_ = std::vector<bi_limb_t>(a.limbs_.begin() + std::min(k, a.limbs_.size()),
+                                       a.limbs_.end());
+    b0.limbs_ = std::vector<bi_limb_t>(b.limbs_.begin(),
+                                       b.limbs_.begin() + std::min(k, b.limbs_.size()));
+    b1.limbs_ = std::vector<bi_limb_t>(b.limbs_.begin() + std::min(k, b.limbs_.size()),
+                                       b.limbs_.end());
 
     BigInteger z0 = karatsubaMul(a0, b0);
     BigInteger z2 = karatsubaMul(a1, b1);
     BigInteger z1 = karatsubaMul(a0 + a1, b0 + b1) - z0 - z2;
 
-    // C = z2*B^(2k) + z1*B^k + z0
+    // Результат
     BigInteger res;
     res.limbs_.assign(z2.limbs_.size() + 2*k, 0);
-    for (size_t i = 0; i < z0.limbs_.size(); i++) res.limbs_[i] += z0.limbs_[i];
-    for (size_t i = 0; i < z1.limbs_.size(); i++) res.limbs_[i + k] += z1.limbs_[i];
-    for (size_t i = 0; i < z2.limbs_.size(); i++) res.limbs_[i + 2*k] += z2.limbs_[i];
+
+    // Добавляем z0
+    {
+        unsigned __int128 carry = 0;
+        for (size_t i = 0; i < z0.limbs_.size() || carry; i++) {
+            if (res.limbs_.size() <= i)
+                res.limbs_.push_back(0);
+            unsigned __int128 cur = res.limbs_[i];
+            unsigned __int128 add = carry + (i < z0.limbs_.size() ? z0.limbs_[i] : 0);
+            unsigned __int128 sum = cur + add;
+            res.limbs_[i] = (bi_limb_t)sum;
+            carry = sum >> 64;
+        }
+    }
+
+    // Добавляем z1 << k
+    {
+        unsigned __int128 carry = 0;
+        for (size_t i = 0; i < z1.limbs_.size() || carry; i++) {
+            size_t pos = i + k;
+            if (res.limbs_.size() <= pos)
+                res.limbs_.push_back(0);
+            unsigned __int128 cur = res.limbs_[pos];
+            unsigned __int128 add = carry + (i < z1.limbs_.size() ? z1.limbs_[i] : 0);
+            unsigned __int128 sum = cur + add;
+            res.limbs_[pos] = (bi_limb_t)sum;
+            carry = sum >> 64;
+        }
+    }
+
+    // Добавляем z2 << (2k)
+    {
+        unsigned __int128 carry = 0;
+        for (size_t i = 0; i < z2.limbs_.size() || carry; i++) {
+            size_t pos = i + 2*k;
+            if (res.limbs_.size() <= pos)
+                res.limbs_.push_back(0);
+            unsigned __int128 cur = res.limbs_[pos];
+            unsigned __int128 add = carry + (i < z2.limbs_.size() ? z2.limbs_[i] : 0);
+            unsigned __int128 sum = cur + add;
+            res.limbs_[pos] = (bi_limb_t)sum;
+            carry = sum >> 64;
+        }
+    }
 
     res.negative_ = a.negative_ != b.negative_;
     res.normalize();
     return res;
 }
+
+
+
 
 BigInteger& BigInteger::operator*=(const BigInteger& other) {
     static MulFunc mulAlgo = [](const BigInteger& a, const BigInteger& b) {
@@ -266,38 +314,19 @@ BigInteger operator*(const BigInteger& a, const BigInteger& b) {
     return result;
 }
 
-// Функция для возведения в степень (для небольших степеней)
 BigInteger BigInteger::pow(unsigned long long exp) const {
-    BigInteger base = *this;
     BigInteger result(1);
+    BigInteger base = *this;
 
     while (exp > 0) {
-        if (exp & 1) {       // если текущий бит показателя равен 1
+        if (exp & 1)
             result *= base;
-        }
-        base *= base;         // возводим основание в квадрат
-        exp >>= 1;            // сдвигаем показатель на 1 бит вправо
-    }
-
-    return result;
-}
-
-// Функция для возведения в большую степень
-BigInteger BigInteger::pow(const BigInteger& exponent) const {
-    if (exponent.negative_) 
-        throw std::runtime_error("Negative exponent not supported");
-
-    BigInteger exp = exponent;  // копия показателя
-    BigInteger base = *this;
-    BigInteger result(1);
-
-    while (!exp.isZero()) {
-        if ((exp.limbs_[0] & 1) == 1) { // проверка на нечетность
-            result *= base;
-        }
         base *= base;
-        exp /= 2; // деление показателя на 2
+        exp >>= 1;
     }
+
+    if (negative_ && (exp & 1))
+        result.negative_ = true;
 
     return result;
 }
