@@ -72,3 +72,13 @@ public:
         return limbs_;
     }
 };
+
+// Литерал для строковых констант (для очень больших чисел)
+inline BigInteger operator"" _bi(const char* str, std::size_t) {
+    return BigInteger(std::string(str));
+}
+
+// Литерал для чисел типа unsigned long long (для обычных целых)
+inline BigInteger operator"" _bi(unsigned long long value) {
+    return BigInteger(static_cast<long long>(value));
+}
