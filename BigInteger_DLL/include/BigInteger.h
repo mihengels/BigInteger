@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <climits>
 #include <compare>
+#include <iomanip>
 
 /** class BigInteger
  *  class for operations on big integers
@@ -66,7 +67,7 @@ public:
     BigInteger pow(unsigned long long exp) const;
 
     // Функции для доступа к приватным членам
-    auto& get_limbs() {
+    const auto& get_limbs() const {
         return limbs_;
     }
 
@@ -148,6 +149,8 @@ public:
         res.negative_ = false; // НОК всегда положительный
         return res;
     }
+
+    friend std::ostream& operator<<(std::ostream& stream, const BigInteger& bigint);
 };
 
 // Литерал для строковых констант (для очень больших чисел)

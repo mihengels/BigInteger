@@ -330,3 +330,55 @@ BigInteger BigInteger::pow(unsigned long long exp) const {
 
     return result;
 }
+
+std::ostream& operator<<(std::ostream& stream, const BigInteger& bigint) {
+    if (bigint.negative_ && !bigint.isZero()) {
+        stream << "-";
+    }
+
+    // выводим старший лимб первым (чтобы было как при обычной записи числа)
+    stream << std::hex << bigint.limbs_.back(); 
+
+    // остальные выводим с ведущими нулями до 16 цифр (64 бита = 16 hex символов)
+    for (std::size_t i = bigint.limbs_.size() - 1; i-- > 0;) {
+        stream << std::setfill('0') << std::setw(16) 
+               << std::noshowbase
+               << std::hex << bigint.limbs_[i];
+    }
+
+    // вернем поток в десятичный режим (на всякий случай)
+    stream << std::dec;
+
+    return stream;
+}
+
+// std::ostream& operator<<(std::ostream& stream, const BigInteger& bigint) {
+//     if (bigint.isZero()) {
+//         stream << "0";
+//         return stream;
+//     }
+
+//     // Копируем число, чтобы не портить исходник
+//     BigInteger temp = bigint;
+//     temp.negative_ = false; // работаем только с модулем числа
+
+//     std::string result;
+//     while (!temp.isZero()) {
+//         // Делим temp на 10
+//         auto divmod = BigInteger::divMod(temp, BigInteger(10));
+//         BigInteger q = divmod.first;
+//         BigInteger r = divmod.second;
+
+//         // r — остаток (одна цифра)
+//         result.push_back(static_cast<char>('0' + r.limbs_[0]));
+//         temp = std::move(q);
+//     }
+
+//     if (bigint.negative_) result.push_back('-');
+
+//     // Сейчас строка в обратном порядке
+//     std::reverse(result.begin(), result.end());
+//     stream << result;
+//     return stream;
+// }
+
